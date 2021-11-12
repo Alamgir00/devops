@@ -1,13 +1,5 @@
-Did you know that more than 90% of the World’s Fastest Computers use Linux? No doubt why! Linux is fast, powerful, and a techies’ favorite. If you are looking to become a Linux Administrator, then this is the right place for you to prepare for the interview. In this article, I will be discussing some of the most common and important Linux Interview Questions and their Answers. 
-
-Interested in Linux Administration? Check out the Live Linux Administration Training.
-
-This Linux Interview Questions blog is divided into two parts: Part A-Theoretical Questions and Part B-Scenario Based Questions. Let’s get started!
-
-Part A-Theoretical Questions
-In this part of Linux Interview Questions, we will discuss the most common theoretical and concept based questions.
-
 1. What is Linux?
+
 Linux is an Open-Source Operating System based on Unix. Linux was first introduced by Linus Torvalds. The main purpose of Linux was to provide free and low-cost Operating System for users who could not afford Operating Systems like Windows or iOS or Unix.
 
 2. What is the difference between Linux and Unix?
@@ -23,6 +15,7 @@ Bug Fix Speed	Faster because Linux is Community driven	Slow
 Portability	Yes	No
 Examples	Ubuntu, Fedora, Red Hat, Kali Linux, Debian, Archlinux, Android, etc. 	OS X, Solaris, All Linux
 Linux vs. Unix – Linux Interview Questions
+
 
 3. What is Linux Kernel? Is it legal to edit Linux Kernel?
 Linux kernel refers to the low-level system software. It is used to manage resources and provide an interface for user interaction.
