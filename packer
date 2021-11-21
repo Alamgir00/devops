@@ -1,0 +1,24 @@
+{
+#Create AMI in AWS :
+        "builders": [
+          {
+          "type": "amazon-ebs",
+          "region": "us-east-1",
+          "access_key" : "AKIAWFMWTWBWTELKONNJ",
+          "secret_key" : "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",
+          "source_ami": "ami-04902260ca3d33422",
+          "instance_type": "t2.micro",
+          "ssh_username": "ec2-user",
+          "ami_name": "cloudknowledge-emi"
+          }
+        ],
+        "provisioners": [
+                {
+                "type": "file",
+                "source": "./cloudknowledgeindia",
+                "destination": "/tmp/"
+                }
+        ]
+
+
+}
