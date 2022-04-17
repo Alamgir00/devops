@@ -1,0 +1,80 @@
+#!/bin/bash
+
+ConfigS3Bucket=amspsd2-api-platform-config-new-ams-dev
+sed -i '/^export http_proxy/d' /etc/bashrc
+sed -i '/^export https_proxy/d' /etc/bashrc
+source /etc/bashrc
+touch /tmp/log.txt
+
+echo HttpProxyIporDNS=proxy.webservices.com:3128 >> /etc/bashrc
+echo export http_proxy='http://${HttpProxyIporDNS}' >> /etc/bashrc
+echo export https_proxy='http://${HttpProxyIporDNS}' >> /etc/bashrc
+echo export NO_PROXY=169.254.169.254,.webservices.com,.mockfoundationservices.com >> /etc/bashrc
+source /etc/bashrc
+echo "proxy=http://$HttpProxyIporDNS" >> /etc/yum.conf
+echo "$$: $(date +%s.%N | cut -b1-13)" > /var/lib/cloud/instance/sem/config_yum_http_proxy
+echo "export HTTP_PROXY=http://$HttpProxyIporDNS/" >> /etc/sysconfig/docker
+echo "export NO_PROXY=169.254.169.254" >> /etc/sysconfig/docker
+echo "$$: $(date +%s.%N | cut -b1-13)" > /var/lib/cloud/instance/sem/config_docker_http_proxy
+echo "HTTP_PROXY=$HttpProxyIporDNS" >> /etc/ecs/ecs.config
+echo "NO_PROXY=169.254.169.254,169.254.170.2,/var/run/docker.sock" >> /etc/ecs/ecs.config
+echo "$$: $(date +%s.%N | cut -b1-13)" > /var/lib/cloud/instance/sem/config_ecs-agent_http_proxy
+echo "Status is YES"
+systemctl restart docker
+echo $http_proxy > /tmp/log.txt
+echo $https_proxy >> /tmp/log.txt
+echo ECS_CLUSTER=ApiServerCluster-new-ams-dev >> /etc/ecs/ecs.config
+
+
+if [ ! -z $http_proxy  ];then
+mkdir -p /etc/systemd/system/docker.service.d/
+echo "[Service]
+Environment='HTTP_PROXY=http://${HttpProxyIporDNS}'
+Environment='HTTPS_PROXY=http://${HttpProxyIporDNS}'
+Environment='NO_PROXY=169.254.169.254'" >> /etc/systemd/system/docker.service.d/http-proxy.conf
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+fi
+
+AWS_INSTANCEID=`curl -k -s http://169.254.169.254/latest/meta-data/instance-id`
+REGION=`curl -k -s http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/[abcd]$//g'`
+TagName=`aws ec2 describe-tags --filters Name=resource-id,Values=${AWS_INSTANCEID} Name=key,Values=Name --query Tags[].Value --output text --region ${REGION}`
+sudo sed -i 's;\"log_group_name\":.*;\"log_group_name\": \"/var/log/'$TagName'_syslog\",;g' /opt/aws/amazon-cloudwatch-agent/etc/config.json
+sudo sed -i 's;\"AutoScalingGroupName\":.*;\"InstanceId\": \"${aws:InstanceId}\";g' /opt/aws/amazon-cloudwatch-agent/etc/config.json
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/config.json -s
+
+if [ ! -z $http_proxy  ];then
+sed -i '19i[proxy]' /opt/aws/amazon-cloudwatch-agent/etc/common-config.toml
+sed -i '20ihttp_proxy = "http://'"${HttpProxyIporDNS}"'"' /opt/aws/amazon-cloudwatch-agent/etc/common-config.toml
+sed -i '21ihttps_proxy = "http://'"${HttpProxyIporDNS}"'"' /opt/aws/amazon-cloudwatch-agent/etc/common-config.toml
+sed -i '22ino_proxy = "169.254.169.254"' /opt/aws/amazon-cloudwatch-agent/etc/common-config.toml
+fi
+
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -m ec2 -a stop
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -m ec2 -a start
+
+mkdir /etc/systemd/system/amazon-ssm-agent.service.d
+chmod 750 /etc/systemd/system/amazon-ssm-agent.service.d
+touch /etc/systemd/system/amazon-ssm-agent.service.d/override.conf
+echo "[Service]
+Environment='http_proxy=http://proxy.webservices.com:3128'
+Environment='https_proxy=http://proxy.webservices.com:3128'
+Environment='no_proxy=169.254.169.254'" >> /etc/systemd/system/amazon-ssm-agent.service.d/override.conf
+chmod 644 /etc/systemd/system/amazon-ssm-agent.service.d/override.conf
+sudo systemctl daemon-reload
+sudo systemctl stop amazon-ssm-agent
+sudo systemctl start amazon-ssm-agent
+
+sed -i '/^server/d' /etc/chrony.conf
+sed -i '2i server 10.32.16.7 prefer iburst' /etc/chrony.conf
+sed -i '2i server 10.32.16.71 prefer iburst' /etc/chrony.conf
+systemctl restart chronyd.service
+
+sudo systemctl stop rsyslog
+sudo service ecs stop
+sudo service ecs start
+
+mkdir /home/ec2-user/config
+aws s3 cp s3://${ConfigS3Bucket}/user-data/linux2_common.sh /home/ec2-user/config --region ${REGION}
+sed -i "s/\r//" /home/ec2-user/config/linux2_common.sh
+source /home/ec2-user/config/linux2_common.sh
