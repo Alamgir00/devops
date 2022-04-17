@@ -1,0 +1,12 @@
+Network File System
+=====================
+service name : nfs
+packages : nfs-utils libnfsidmap
+ports : rpc based service 
+files : 
+/etc/exports
+/etc/fstab
+/etc/sysconfig/nfs
+/etc/hosts.allow
+/etc/hosts.deny
+
